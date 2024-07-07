@@ -1,4 +1,5 @@
 import { Database } from "sqlite-async";
+import { ErrorCodes } from "../constants/error-codes.mjs";
 import {
   GENERAL_ERR_MSG,
   USERNAME_EXISTS_ERR_MSG,
@@ -30,7 +31,9 @@ export default class UserModel {
       );
 
       if (existingUser) {
-        throw new Error(USERNAME_EXISTS_ERR_MSG);
+        const error = new Error(USERNAME_EXISTS_ERR_MSG);
+        error.code = ErrorCodes.USERNAME_EXISTS;
+        throw error;
       }
 
       const result = await this.#db.run(
@@ -40,10 +43,12 @@ export default class UserModel {
 
       return { id: result.lastID, username };
     } catch (error) {
-      if (error.message === USERNAME_EXISTS_ERR_MSG) {
-        throw new Error(USERNAME_EXISTS_ERR_MSG);
+      if (error.code === ErrorCodes.USERNAME_EXISTS) {
+        throw error;
       }
-      throw new Error(GENERAL_ERR_MSG);
+      const dbError = new Error(GENERAL_ERR_MSG);
+      dbError.code = ErrorCodes.GENERAL_ERROR;
+      throw dbError;
     }
   }
 
@@ -53,7 +58,9 @@ export default class UserModel {
       return user ? { id: user.id, username: user.username } : undefined;
     } catch (error) {
       console.error(error);
-      throw new Error(GENERAL_ERR_MSG);
+      const dbError = new Error(GENERAL_ERR_MSG);
+      dbError.code = ErrorCodes.GENERAL_ERROR;
+      throw dbError;
     }
   }
 
@@ -63,7 +70,9 @@ export default class UserModel {
       return users || [];
     } catch (error) {
       console.error(error);
-      throw new Error(GENERAL_ERR_MSG);
+      const dbError = new Error(GENERAL_ERR_MSG);
+      dbError.code = ErrorCodes.GENERAL_ERROR;
+      throw dbError;
     }
   }
 }

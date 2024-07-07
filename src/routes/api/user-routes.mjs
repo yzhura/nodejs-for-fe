@@ -1,5 +1,6 @@
 import { Router } from "express";
 import UserModel from "../../models/user.mjs";
+import { ErrorCodes } from "../../constants/error-codes.mjs";
 import {
   GENERAL_ERR_MSG,
   USER_REQUIRED_ERR_MSG,
@@ -33,7 +34,7 @@ router.post("/users", async (req, res) => {
     res.status(201).json(user);
   } catch (error) {
     console.error(error);
-    if (error.message === USERNAME_EXISTS_ERR_MSG) {
+    if (error.code === ErrorCodes.USERNAME_EXISTS) {
       res.status(409).json({ error: USERNAME_EXISTS_ERR_MSG });
     } else {
       res.status(500).json({ error: GENERAL_ERR_MSG });
@@ -50,7 +51,7 @@ router.get("/users", async (req, res) => {
     }
     res.status(200).json(users);
   } catch (error) {
-    console.error("ERROR::", error.message);
+    console.error(error);
     res.status(500).json({ error: GENERAL_ERR_MSG });
   }
 });
