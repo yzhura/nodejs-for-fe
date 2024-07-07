@@ -73,11 +73,12 @@
             username,
           }),
         })
-          .then((res) => {
+          .then(async (res) => {
             if (res && res.ok) {
               alert("Success");
             } else {
-              alert(`Something went wrong ${res?.statusText}`);
+              const data = await res.json();
+              alert(`Something went wrong: ${data?.error || res?.statusText}`);
             }
           })
           .catch((err) => {
