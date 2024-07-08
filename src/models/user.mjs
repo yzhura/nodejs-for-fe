@@ -111,4 +111,47 @@ export default class UserModel {
       throw dbError;
     }
   }
+
+  async getUserExerciseLog(userId, from, to, limit) {
+    const user = await this.#db.get("SELECT * FROM users WHERE id = ?", [
+      userId,
+    ]);
+
+    if (!user) {
+      const error = new Error(USER_NOT_FOUND_ERR_MSG);
+      error.code = ErrorCodes.USER_NOT_FOUND;
+      throw error;
+    }
+
+    let query = "SELECT * FROM exercises WHERE userId = ?";
+    const params = [userId];
+
+    if (from) {
+      query += " AND date >= ?";
+      params.push(from);
+    }
+    if (to) {
+      query += " AND date <= ?";
+      params.push(to);
+    }
+    query += " ORDER BY date DESC";
+
+    if (limit) {
+      query += " LIMIT ?";
+      params.push(limit);
+    }
+
+    const exercises = await this.#db.all(query, params);
+    return {
+      id: user.id,
+      username: user.username,
+      count: exercises.length,
+      log: exercises.map((exercise) => ({
+        id: exercise.id,
+        description: exercise.description,
+        duration: exercise.duration,
+        date: exercise.date,
+      })),
+    };
+  }
 }

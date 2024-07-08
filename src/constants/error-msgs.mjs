@@ -11,5 +11,6 @@ export const EXERCISE_REQUIRED_FIELDS_ERR_MSG =
 export const EXERCISE_INVALID_DATE_ERR_MSG =
   "Invalid date. The date must be in YYYY-MM-DD format";
 export const USER_NOT_FOUND_ERR_MSG = "User not found";
-export const INVALID_DESCRIPTION_ERR_MSG =
-  "Invalid description. Description cannot be empty";
+export const INVALID_DESCRIPTION_ERR_MSG = "Invalid description";
+export const INVALID_DURATION_ERR_MSG =
+  "Invalid duration. Please provide a positive integer";

@@ -11,6 +11,7 @@ import {
   EXERCISE_INVALID_DATE_ERR_MSG,
   USER_NOT_FOUND_ERR_MSG,
   INVALID_DESCRIPTION_ERR_MSG,
+  INVALID_DURATION_ERR_MSG,
 } from "../../constants/error-msgs.mjs";
 import {
   validateDate,
@@ -55,7 +56,6 @@ router.get("/users", async (req, res) => {
     const users = await userModel.getAllUsers();
     if (!users || !users.length) {
       res.status(404).json({ error: USERS_EMPTY_LIST_ERR_MSG });
-      return;
     }
     res.status(200).json(users);
   } catch (error) {
@@ -78,7 +78,7 @@ router.post("/users/:_id/exercises", async (req, res) => {
     }
 
     if (isNaN(duration) || duration <= 0) {
-      return res.status(400).json({ error: INVALID_DESCRIPTION_ERR_MSG });
+      return res.status(400).json({ error: INVALID_DURATION_ERR_MSG });
     }
 
     if (date && !validateDate(date)) {
@@ -109,6 +109,29 @@ router.post("/users/:_id/exercises", async (req, res) => {
       res.status(400).json({ error: EXERCISE_INVALID_DATE_ERR_MSG });
     } else {
       res.status(400).json({ error: EXERCISE_REQUIRED_FIELDS_ERR_MSG });
+    }
+  }
+});
+
+router.get("/users/:_id/logs", async (req, res) => {
+  try {
+    const { _id } = req.params;
+    const { from, to, limit } = req.query;
+
+    const userExerciseLog = await userModel.getUserExerciseLog(
+      parseInt(_id),
+      from,
+      to,
+      limit ? parseInt(limit) : undefined
+    );
+
+    res.status(200).json(userExerciseLog);
+  } catch (error) {
+    console.error(error);
+    if (error.code === ErrorCodes.USER_NOT_FOUND) {
+      res.status(404).json({ error: USER_NOT_FOUND_ERR_MSG });
+    } else {
+      res.status(500).json({ error: GENERAL_ERR_MSG });
     }
   }
 });
