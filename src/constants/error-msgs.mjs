@@ -1,5 +1,3 @@
-// constants/error-msgs.mjs
-
 export const GENERAL_ERR_MSG = "An unexpected error occurred";
 export const USER_REQUIRED_ERR_MSG = "Username is required";
 export const USERS_EMPTY_LIST_ERR_MSG = "No users found";

@@ -7,16 +7,21 @@ import {
 } from "../constants/error-msgs.mjs";
 import { sanitizeDescription } from "../helpers/general.mjs";
 
+let instance = null;
+
 export default class UserModel {
   #db;
 
-  constructor(db) {
-    this.#db = db;
+  constructor() {
+    if (!instance) {
+      instance = this;
+    }
+    return instance;
   }
 
-  static async init() {
-    const db = await Database.open("./db/users.db");
-    await db.exec(`
+  async init() {
+    this.#db = await Database.open("./db/users.db");
+    await this.#db.exec(`
       CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT NOT NULL UNIQUE
@@ -30,7 +35,7 @@ export default class UserModel {
         FOREIGN KEY (userId) REFERENCES users(id)
       );
     `);
-    return new UserModel(db);
+    console.log("Database initialized");
   }
 
   async createUser(username) {
