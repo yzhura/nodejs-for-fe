@@ -69,7 +69,7 @@ router.post("/users/:_id/exercises", async (req, res) => {
     const { _id } = req.params;
     const { description, duration, date } = req.body;
 
-    if (!description || !duration) {
+    if (!description) {
       return res.status(400).json({ error: EXERCISE_REQUIRED_FIELDS_ERR_MSG });
     }
 

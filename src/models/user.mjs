@@ -28,7 +28,7 @@ export default class UserModel {
         userId INTEGER,
         description TEXT NOT NULL,
         duration INTEGER NOT NULL,
-        date TEXT,
+        date INTEGER,
         FOREIGN KEY (userId) REFERENCES users(id)
       )
     `);
@@ -91,18 +91,19 @@ export default class UserModel {
   async createExercise(userId, description, duration, date) {
     try {
       const sanitizedDescription = sanitizeDescription(description);
+      const dateValue = date ? new Date(date).getTime() : Date.now();
 
       const result = await this.#db.run(
         "INSERT INTO exercises (userId, description, duration, date) VALUES (?, ?, ?, ?)",
-        [userId, sanitizedDescription, duration, date]
+        [userId, sanitizedDescription, duration, dateValue]
       );
 
       return {
         userId,
         exerciseId: result.lastID,
-        description,
+        description: sanitizedDescription,
         duration,
-        date,
+        date: new Date(dateValue).toISOString().split("T")[0],
       };
     } catch (error) {
       console.error(error);
@@ -128,11 +129,11 @@ export default class UserModel {
 
     if (from) {
       query += " AND date >= ?";
-      params.push(from);
+      params.push(new Date(from).getTime());
     }
     if (to) {
       query += " AND date <= ?";
-      params.push(to);
+      params.push(new Date(to).getTime());
     }
     query += " ORDER BY date DESC";
 
@@ -150,7 +151,7 @@ export default class UserModel {
         id: exercise.id,
         description: exercise.description,
         duration: exercise.duration,
-        date: exercise.date,
+        date: new Date(exercise.date).toISOString().split("T")[0],
       })),
     };
   }
