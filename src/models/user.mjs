@@ -2,8 +2,10 @@ import { Database } from "sqlite-async";
 import { ErrorCodes } from "../constants/error-codes.mjs";
 import {
   GENERAL_ERR_MSG,
+  USER_NOT_FOUND_ERR_MSG,
   USERNAME_EXISTS_ERR_MSG,
 } from "../constants/error-msgs.mjs";
+import { sanitizeDescription } from "../helpers/general.mjs";
 
 export default class UserModel {
   #db;
@@ -18,6 +20,16 @@ export default class UserModel {
       CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT NOT NULL UNIQUE
+      )
+    `);
+    await db.run(`
+      CREATE TABLE IF NOT EXISTS exercises (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        userId INTEGER,
+        description TEXT NOT NULL,
+        duration INTEGER NOT NULL,
+        date TEXT,
+        FOREIGN KEY (userId) REFERENCES users(id)
       )
     `);
     return new UserModel(db);
@@ -58,8 +70,8 @@ export default class UserModel {
       return user ? { id: user.id, username: user.username } : undefined;
     } catch (error) {
       console.error(error);
-      const dbError = new Error(GENERAL_ERR_MSG);
-      dbError.code = ErrorCodes.GENERAL_ERROR;
+      const dbError = new Error(USER_NOT_FOUND_ERR_MSG);
+      dbError.code = ErrorCodes.USER_NOT_FOUND;
       throw dbError;
     }
   }
@@ -68,6 +80,30 @@ export default class UserModel {
     try {
       const users = await this.#db.all("SELECT * FROM users");
       return users || [];
+    } catch (error) {
+      console.error(error);
+      const dbError = new Error(GENERAL_ERR_MSG);
+      dbError.code = ErrorCodes.GENERAL_ERROR;
+      throw dbError;
+    }
+  }
+
+  async createExercise(userId, description, duration, date) {
+    try {
+      const sanitizedDescription = sanitizeDescription(description);
+
+      const result = await this.#db.run(
+        "INSERT INTO exercises (userId, description, duration, date) VALUES (?, ?, ?, ?)",
+        [userId, sanitizedDescription, duration, date]
+      );
+
+      return {
+        userId,
+        exerciseId: result.lastID,
+        description,
+        duration,
+        date,
+      };
     } catch (error) {
       console.error(error);
       const dbError = new Error(GENERAL_ERR_MSG);

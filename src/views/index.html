@@ -24,7 +24,7 @@
         <input id="uname" type="text" name="username" placeholder="username" />
         <input type="submit" value="Submit" />
       </form>
-      <form action="/api/users/:_id/exercises" id="exercise-form" method="post">
+      <form id="exercise-form">
         <h2>Add exercises</h2>
         <p><code>POST /api/users/:_id/exercises</code></p>
         <input id="uid" type="text" name=":_id" placeholder=":_id" />
@@ -59,41 +59,85 @@
       </p>
     </div>
     <script>
-      const userForm = document.getElementById("create-user-form");
+      initCreateUserForm();
+      initCreateExerciseForm();
 
-      userForm.addEventListener("submit", (e) => {
-        e.preventDefault();
-        const username = e.target.elements.username.value;
-        fetch("/api/users", {
-          method: "post",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            username,
-          }),
-        })
-          .then(async (res) => {
-            if (res && res.ok) {
-              alert("Success");
-            } else {
-              const data = await res.json();
-              alert(`Something went wrong: ${data?.error || res?.statusText}`);
-            }
+      function initCreateUserForm() {
+        const userForm = document.getElementById("create-user-form");
+
+        userForm.addEventListener("submit", (event) => {
+          event.preventDefault();
+
+          const username = event.target.elements.username.value;
+
+          fetch("/api/users", {
+            method: "post",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              username,
+            }),
           })
-          .catch((err) => {
-            alert(`Something went wrong ${err}`);
-          });
-      });
+            .then(async (res) => {
+              if (res && res.ok) {
+                alert("Success!");
+              } else {
+                const data = await res.json();
+                alert(
+                  `Something went wrong: ${data?.error || res?.statusText}`
+                );
+              }
+            })
+            .catch((err) => {
+              alert(`Something went wrong ${err}`);
+            });
+        });
+      }
 
-      const exerciseForm = document.getElementById("exercise-form");
+      function initCreateExerciseForm() {
+        const exerciseForm = document.getElementById("exercise-form");
 
-      exerciseForm.addEventListener("submit", () => {
-        const userId = document.getElementById("uid").value;
-        exerciseForm.action = `/api/users/${userId}/exercises`;
+        exerciseForm.addEventListener("submit", (event) => {
+          event.preventDefault();
 
-        exerciseForm.submit();
-      });
+          const formElements = event.target.elements;
+          const userId = document.getElementById("uid").value;
+          if (!userId) {
+            alert("User ID is required!");
+            return;
+          }
+          const url = `/api/users/${userId}/exercises`;
+
+          const payload = {
+            userId,
+            description: formElements.description.value,
+            duration: formElements.duration.value,
+            date: formElements.date.value || null,
+          };
+
+          fetch(url, {
+            method: "post",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+          })
+            .then(async (res) => {
+              if (res && res.ok) {
+                alert("Success!");
+              } else {
+                const data = await res.json();
+                alert(
+                  `Something went wrong: ${data?.error || res?.statusText}`
+                );
+              }
+            })
+            .catch((err) => {
+              alert(`Something went wrong ${err}`);
+            });
+        });
+      }
     </script>
   </body>
 </html>

@@ -7,8 +7,16 @@ import {
   USERS_EMPTY_LIST_ERR_MSG,
   USERNAME_EXISTS_ERR_MSG,
   INVALID_USERNAME_ERR_MSG,
+  EXERCISE_REQUIRED_FIELDS_ERR_MSG,
+  EXERCISE_INVALID_DATE_ERR_MSG,
+  USER_NOT_FOUND_ERR_MSG,
+  INVALID_DESCRIPTION_ERR_MSG,
 } from "../../constants/error-msgs.mjs";
-import { validateUsername } from "../../helpers/general.mjs";
+import {
+  validateDate,
+  validateDescription,
+  validateUsername,
+} from "../../helpers/general.mjs";
 
 const router = Router();
 
@@ -53,6 +61,55 @@ router.get("/users", async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: GENERAL_ERR_MSG });
+  }
+});
+
+router.post("/users/:_id/exercises", async (req, res) => {
+  try {
+    const { _id } = req.params;
+    const { description, duration, date } = req.body;
+
+    if (!description || !duration) {
+      return res.status(400).json({ error: EXERCISE_REQUIRED_FIELDS_ERR_MSG });
+    }
+
+    if (!validateDescription(description)) {
+      return res.status(400).json({ error: INVALID_DESCRIPTION_ERR_MSG });
+    }
+
+    if (isNaN(duration) || duration <= 0) {
+      return res.status(400).json({ error: INVALID_DESCRIPTION_ERR_MSG });
+    }
+
+    if (date && !validateDate(date)) {
+      return res.status(400).json({ error: EXERCISE_INVALID_DATE_ERR_MSG });
+    }
+
+    const user = await userModel.getUserById(_id);
+    if (!user) {
+      return res.status(404).json({ error: USER_NOT_FOUND_ERR_MSG });
+    }
+
+    const exerciseDate = date || new Date().toISOString().slice(0, 10);
+    const createdExercise = await userModel.createExercise(
+      parseInt(_id),
+      description,
+      parseInt(duration),
+      exerciseDate
+    );
+
+    res.status(201).json(createdExercise);
+  } catch (error) {
+    console.error(error);
+    if (error.code === ErrorCodes.GENERAL_ERROR) {
+      res.status(500).json({ error: GENERAL_ERR_MSG });
+    } else if (error.code === ErrorCodes.USER_NOT_FOUND) {
+      res.status(404).json({ error: USER_NOT_FOUND_ERR_MSG });
+    } else if (error.code === ErrorCodes.INVALID_DATE) {
+      res.status(400).json({ error: EXERCISE_INVALID_DATE_ERR_MSG });
+    } else {
+      res.status(400).json({ error: EXERCISE_REQUIRED_FIELDS_ERR_MSG });
+    }
   }
 });
 
