@@ -16,13 +16,11 @@ export default class UserModel {
 
   static async init() {
     const db = await Database.open("./db/users.db");
-    await db.run(`
+    await db.exec(`
       CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT NOT NULL UNIQUE
-      )
-    `);
-    await db.run(`
+      );
       CREATE TABLE IF NOT EXISTS exercises (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         userId INTEGER,
@@ -30,7 +28,7 @@ export default class UserModel {
         duration INTEGER NOT NULL,
         date INTEGER,
         FOREIGN KEY (userId) REFERENCES users(id)
-      )
+      );
     `);
     return new UserModel(db);
   }
@@ -41,26 +39,20 @@ export default class UserModel {
         "SELECT * FROM users WHERE username = ?",
         [username]
       );
-
       if (existingUser) {
-        const error = new Error(USERNAME_EXISTS_ERR_MSG);
-        error.code = ErrorCodes.USERNAME_EXISTS;
-        throw error;
+        throw this.#createError(
+          USERNAME_EXISTS_ERR_MSG,
+          ErrorCodes.USERNAME_EXISTS
+        );
       }
 
       const result = await this.#db.run(
         "INSERT INTO users (username) VALUES (?)",
         [username]
       );
-
       return { id: result.lastID, username };
     } catch (error) {
-      if (error.code === ErrorCodes.USERNAME_EXISTS) {
-        throw error;
-      }
-      const dbError = new Error(GENERAL_ERR_MSG);
-      dbError.code = ErrorCodes.GENERAL_ERROR;
-      throw dbError;
+      this.#handleDbError(error, ErrorCodes.USERNAME_EXISTS);
     }
   }
 
@@ -69,10 +61,7 @@ export default class UserModel {
       const user = await this.#db.get("SELECT * FROM users WHERE id = ?", [id]);
       return user ? { id: user.id, username: user.username } : undefined;
     } catch (error) {
-      console.error(error);
-      const dbError = new Error(USER_NOT_FOUND_ERR_MSG);
-      dbError.code = ErrorCodes.USER_NOT_FOUND;
-      throw dbError;
+      this.#handleDbError(error, ErrorCodes.USER_NOT_FOUND);
     }
   }
 
@@ -81,10 +70,7 @@ export default class UserModel {
       const users = await this.#db.all("SELECT * FROM users");
       return users || [];
     } catch (error) {
-      console.error(error);
-      const dbError = new Error(GENERAL_ERR_MSG);
-      dbError.code = ErrorCodes.GENERAL_ERROR;
-      throw dbError;
+      this.#handleDbError(error);
     }
   }
 
@@ -106,53 +92,67 @@ export default class UserModel {
         date: new Date(dateValue).toISOString().split("T")[0],
       };
     } catch (error) {
-      console.error(error);
-      const dbError = new Error(GENERAL_ERR_MSG);
-      dbError.code = ErrorCodes.GENERAL_ERROR;
-      throw dbError;
+      this.#handleDbError(error);
     }
   }
 
   async getUserExerciseLog(userId, from, to, limit) {
-    const user = await this.#db.get("SELECT * FROM users WHERE id = ?", [
-      userId,
-    ]);
+    try {
+      const user = await this.getUserById(userId);
+      if (!user) {
+        throw this.#createError(
+          USER_NOT_FOUND_ERR_MSG,
+          ErrorCodes.USER_NOT_FOUND
+        );
+      }
 
-    if (!user) {
-      const error = new Error(USER_NOT_FOUND_ERR_MSG);
-      error.code = ErrorCodes.USER_NOT_FOUND;
-      throw error;
+      const query = this.#buildExerciseLogQuery(from, to, limit);
+      const params = [userId, ...this.#buildQueryParams(from, to, limit)];
+
+      const exercises = await this.#db.all(query, params);
+      return {
+        id: user.id,
+        username: user.username,
+        count: exercises.length,
+        log: exercises.map((exercise) => ({
+          id: exercise.id,
+          description: exercise.description,
+          duration: exercise.duration,
+          date: new Date(exercise.date).toISOString().split("T")[0],
+        })),
+      };
+    } catch (error) {
+      this.#handleDbError(error, ErrorCodes.USER_NOT_FOUND);
     }
+  }
 
+  #buildExerciseLogQuery(from, to, limit) {
     let query = "SELECT * FROM exercises WHERE userId = ?";
-    const params = [userId];
-
-    if (from) {
-      query += " AND date >= ?";
-      params.push(new Date(from).getTime());
-    }
-    if (to) {
-      query += " AND date <= ?";
-      params.push(new Date(to).getTime());
-    }
+    if (from) query += " AND date >= ?";
+    if (to) query += " AND date <= ?";
     query += " ORDER BY date DESC";
+    if (limit) query += " LIMIT ?";
+    return query;
+  }
 
-    if (limit) {
-      query += " LIMIT ?";
-      params.push(limit);
-    }
+  #buildQueryParams(from, to, limit) {
+    const params = [];
+    if (from) params.push(new Date(from).getTime());
+    if (to) params.push(new Date(to).getTime());
+    if (limit) params.push(limit);
+    return params;
+  }
 
-    const exercises = await this.#db.all(query, params);
-    return {
-      id: user.id,
-      username: user.username,
-      count: exercises.length,
-      log: exercises.map((exercise) => ({
-        id: exercise.id,
-        description: exercise.description,
-        duration: exercise.duration,
-        date: new Date(exercise.date).toISOString().split("T")[0],
-      })),
-    };
+  #createError(message, code) {
+    const error = new Error(message);
+    error.code = code;
+    return error;
+  }
+
+  #handleDbError(error, defaultCode = ErrorCodes.GENERAL_ERROR) {
+    console.error(error);
+    const dbError = new Error(GENERAL_ERR_MSG);
+    dbError.code = error.code || defaultCode;
+    throw dbError;
   }
 }

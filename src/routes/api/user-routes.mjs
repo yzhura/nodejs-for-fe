@@ -23,12 +23,36 @@ const router = Router();
 
 let userModel;
 
-UserModel.init().then((model) => {
-  userModel = model;
-  console.log("Database initialized");
-});
+const initializeUserModel = async (req, res, next) => {
+  try {
+    if (!userModel) {
+      const model = await UserModel.init();
+      userModel = model;
+      console.log("Database initialized");
+    }
+    next();
+  } catch (error) {
+    console.error("Error initializing UserModel:", error);
+    res.status(500).json({ error: GENERAL_ERR_MSG });
+  }
+};
 
-router.post("/users", async (req, res) => {
+router.use(initializeUserModel);
+
+const handleErrors = (error, req, res, next) => {
+  console.error(error);
+  if (error.code === ErrorCodes.USERNAME_EXISTS) {
+    res.status(409).json({ error: USERNAME_EXISTS_ERR_MSG });
+  } else if (error.code === ErrorCodes.USER_NOT_FOUND) {
+    res.status(404).json({ error: USER_NOT_FOUND_ERR_MSG });
+  } else if (error.code === ErrorCodes.INVALID_DATE) {
+    res.status(400).json({ error: EXERCISE_INVALID_DATE_ERR_MSG });
+  } else {
+    res.status(500).json({ error: GENERAL_ERR_MSG });
+  }
+};
+
+router.post("/users", async (req, res, next) => {
   try {
     const { username } = req.body;
     if (!username) {
@@ -42,29 +66,24 @@ router.post("/users", async (req, res) => {
     const user = await userModel.createUser(username);
     res.status(201).json(user);
   } catch (error) {
-    console.error(error);
-    if (error.code === ErrorCodes.USERNAME_EXISTS) {
-      res.status(409).json({ error: USERNAME_EXISTS_ERR_MSG });
-    } else {
-      res.status(500).json({ error: GENERAL_ERR_MSG });
-    }
+    next(error);
   }
 });
 
-router.get("/users", async (req, res) => {
+router.get("/users", async (req, res, next) => {
   try {
     const users = await userModel.getAllUsers();
     if (!users || !users.length) {
       res.status(404).json({ error: USERS_EMPTY_LIST_ERR_MSG });
+      return;
     }
     res.status(200).json(users);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: GENERAL_ERR_MSG });
+    next(error);
   }
 });
 
-router.post("/users/:_id/exercises", async (req, res) => {
+router.post("/users/:_id/exercises", async (req, res, next) => {
   try {
     const { _id } = req.params;
     const { description, duration, date } = req.body;
@@ -100,20 +119,11 @@ router.post("/users/:_id/exercises", async (req, res) => {
 
     res.status(201).json(createdExercise);
   } catch (error) {
-    console.error(error);
-    if (error.code === ErrorCodes.GENERAL_ERROR) {
-      res.status(500).json({ error: GENERAL_ERR_MSG });
-    } else if (error.code === ErrorCodes.USER_NOT_FOUND) {
-      res.status(404).json({ error: USER_NOT_FOUND_ERR_MSG });
-    } else if (error.code === ErrorCodes.INVALID_DATE) {
-      res.status(400).json({ error: EXERCISE_INVALID_DATE_ERR_MSG });
-    } else {
-      res.status(400).json({ error: EXERCISE_REQUIRED_FIELDS_ERR_MSG });
-    }
+    next(error);
   }
 });
 
-router.get("/users/:_id/logs", async (req, res) => {
+router.get("/users/:_id/logs", async (req, res, next) => {
   try {
     const { _id } = req.params;
     const { from, to, limit } = req.query;
@@ -127,13 +137,10 @@ router.get("/users/:_id/logs", async (req, res) => {
 
     res.status(200).json(userExerciseLog);
   } catch (error) {
-    console.error(error);
-    if (error.code === ErrorCodes.USER_NOT_FOUND) {
-      res.status(404).json({ error: USER_NOT_FOUND_ERR_MSG });
-    } else {
-      res.status(500).json({ error: GENERAL_ERR_MSG });
-    }
+    next(error);
   }
 });
+
+router.use(handleErrors);
 
 export default router;
